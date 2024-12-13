@@ -68,6 +68,7 @@ if (-not $RAExist) {
     Write-Host "RA CQ already exists..." -ForegroundColor Red
     exit
 }
+
 if ($confirmation -eq "yes") {
     Write-Output "Continuing..."
     $resourceAccountParams = @{
@@ -119,7 +120,7 @@ if ($confirmation -eq "yes") {
     } catch {
         Write-Error "An error occurred: $_"
     }
-}
+
 
 # parameters callqueue
 $callQueueParams = @{
@@ -169,16 +170,18 @@ try {
  # agents toevoegen aan call queue
     ## ONDERSTAANDE IS NIET ZO BEST KAN MAKKELIJKER
     $userGuids = @()
+    $userlist =@()
     foreach ($item in $row.Agents.Split(';')) {
         $useremail = Get-MgUser -UserId $item
         $userGuids += $useremail.Id
+        $userlist += $useremail.Mail
     }
     
    ## 
    try {
     Write-Output "Adding the eendjes"
     #Set-CsCallQueue -Identity $newCallQueue.Identity -Users $userGuids -WarningAction SilentlyContinue > $null
-    Write-Output "eendjes added...$userGuids"
+    Write-Output "eendjes added... $userlist"
    }
    catch {
     Write-Output "An error occurred: $_"
@@ -193,11 +196,11 @@ try {
    catch {
      Write-Output "An error occurred: $_"
    }
-   
 
 } elseif ($confirmation -eq "no") {
     Write-Output "Stopping..."
     exit
 } else {
     Write-Output "Invalid input. Please enter 'yes' or 'no'."
+}
 }
