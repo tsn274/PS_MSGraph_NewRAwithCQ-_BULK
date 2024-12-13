@@ -4,8 +4,8 @@
 #Connect-MicrosoftTeams
 
 
-
-
+## logfile. DAT Tee-object na elke output kan volgens mij ook handiger
+$logFilePath = "C:\temp\logfileCQBulk.txt"
 
 <#
 Prepare your CSV file: Create a CSV file with the necessary columns c:\temp\list.csv:
@@ -25,6 +25,7 @@ $CQAgentsRoutingmethod = "Longestidle"
 $cqpresencerouting = $true
 $cqagentsoptout = $true
 
+#import file volgens format
 $importlist = Import-Csv -Path "C:\temp\list.csv"
 
 foreach ($row in $importlist) {
@@ -39,7 +40,7 @@ foreach ($row in $importlist) {
     $finaldisplayname = $words[0] + "-" + ($words[1..($words.Length - 1)] -join "_")
 
 
-    $domain = "@vunl.onmicrosoft.com" ##DEZE AANPASSEN VOOR PRODUCTIE
+    $domain = "@vunl.onmicrosoft.com" ##DEZE AANPASSEN VOOR PRODUCTIE OF TEST
 
     $upn = "AAD-CQ-" + $finaldisplayname + $domain
     $mailnickname = $finaldisplayname -replace "_","-"  
@@ -56,13 +57,17 @@ foreach ($row in $importlist) {
     CallQueue Agents Opt-out AAN: $cqagentsoptout
     CallQueue MailNicknam: $mailnickname
     "
+    # add date and time
+    Write-Output (Get-Date -Format "yyyy-MM-dd HH:mm:ss") | Tee-Object -FilePath $logFilePath -Append
 
-    Write-Output "Check if RA exist..."
+    #check if ra exist
+    Write-Output "Check if RA exist..." | Tee-Object -FilePath $logFilePath -Append
 
 $RAExist = Get-CsOnlineApplicationInstance $upn -ErrorAction SilentlyContinue
 
 if (-not $RAExist) {
     Write-Host $summary -ForegroundColor Cyan
+    Write-Output "Continue creating RA" | Tee-Object -FilePath $logFilePath -Append
     $confirmation = Read-Host "Are you sure? (yes to continue, no to stop)"
 } else {
     Write-Host "RA CQ already exists..." -ForegroundColor Red
@@ -70,7 +75,7 @@ if (-not $RAExist) {
 }
 
 if ($confirmation -eq "yes") {
-    Write-Output "Continuing..."
+    Write-Output "Continuing..." | Tee-Object -FilePath $logFilePath -Append
     $resourceAccountParams = @{
         UserPrincipalName = $upn
         ApplicationId     = "11cd3e2e-fccb-42ad-ad00-878b93575e07"
@@ -78,10 +83,10 @@ if ($confirmation -eq "yes") {
     }
 
     try {
-        Write-Output "Make new ResourceAccount..."
+        Write-Output "Make new ResourceAccount..." | Tee-Object -FilePath $logFilePath -Append
         # Uncomment the line below to actually create the resource account
         # $resourceAccount = New-CsOnlineApplicationInstance @resourceAccountParams
-        Write-Output "Resource account created successfully."
+        Write-Output "Resource account created successfully." | Tee-Object -FilePath $logFilePath -Append
     } catch {
         Write-Error "An error occurred: $_"
     }
@@ -93,10 +98,10 @@ if ($confirmation -eq "yes") {
     }
 
     try {
-        Write-Output "Assign License to ResourceAccount..."
+        Write-Output "Assign License to ResourceAccount..." | Tee-Object -FilePath $logFilePath -Append
         # Uncomment the line below to actually assign the license
         # $entitlement = New-MgGroupMember @entitlementgroupParams
-        Write-Output "Assign License successfully"
+        Write-Output "Assign License successfully" | Tee-Object -FilePath $logFilePath -Append
     } catch {
         Write-Error "An error occurred: $_"
     }
@@ -116,7 +121,7 @@ if ($confirmation -eq "yes") {
         Write-Output "Assign Phonenumber to ResourceAccount"
         # Uncomment the line below to actually assign the phone number
         # $phonenumberassign = Set-CsPhoneNumberAssignment @phonenumberassignParams
-        Write-Output "Phonenumber $phonenumberassign assigned to ResourceAccount..."
+        Write-Output "Phonenumber $phonenumberassign assigned to ResourceAccount..." | Tee-Object -FilePath $logFilePath -Append
     } catch {
         Write-Error "An error occurred: $_"
     }
@@ -149,19 +154,19 @@ $callQueueParams = @{
 
 try {
     # Create the new Call Queue
-    Write-Output "Creating new Call Queue..."
+    Write-Output "Creating new Call Queue..." | Tee-Object -FilePath $logFilePath -Append
     # Uncomment the line below to actually create the callqueue
     #$newCallQueue = New-CsCallQueue @callQueueParams -WarningAction SilentlyContinue
 
     # Check if the Call Queue was created successfully
     if ($newCallQueue) {
-        Write-Output "Call Queue created successfully."
+        Write-Output "Call Queue created successfully." | Tee-Object -FilePath $logFilePath -Append
     } else {
-        Write-Output "Failed to create Call Queue."
+        Write-Output "Failed to create Call Queue." | Tee-Object -FilePath $logFilePath -Append
     }
 } catch {
     # Handle any errors that occur during the creation process
-    Write-Output "An error occurred: $_"
+    Write-Output "An error occurred: $_" | Tee-Object -FilePath $logFilePath -Append
 }
 
 
@@ -169,38 +174,49 @@ try {
 
  # agents toevoegen aan call queue
     ## ONDERSTAANDE IS NIET ZO BEST KAN MAKKELIJKER
-    $userGuids = @()
-    $userlist =@()
-    foreach ($item in $row.Agents.Split(';')) {
-        $useremail = Get-MgUser -UserId $item
+   # Initialize arrays to store user GUIDs, emails, and not added users
+$userGuids = @()
+$userlist = @()
+$notAddedUsers = @()
+
+# Loop through each agent in the row.Agents, split by semicolon
+foreach ($item in $row.Agents.Split(';')) {
+    # Get user details using Microsoft Graph API
+    $useremail = Get-MgUser -UserId $item -ErrorAction SilentlyContinue
+    if ($useremail) {
+        # Add user ID to the GUIDs array
         $userGuids += $useremail.Id
+        # Add user email to the user list array
         $userlist += $useremail.Mail
+    } else {
+        # Add user to the not added users array if not found
+        $notAddedUsers += $item
     }
-    
-   ## 
-   try {
-    Write-Output "Adding the eendjes"
+}
+
+try {
+    Write-Output "Adding the eendjes" | Tee-Object -FilePath $logFilePath -Append
+    # Set the call queue with the collected user GUIDs
     #Set-CsCallQueue -Identity $newCallQueue.Identity -Users $userGuids -WarningAction SilentlyContinue > $null
-    Write-Output "eendjes added... $userlist"
-   }
-   catch {
-    Write-Output "An error occurred: $_"
-   }
-   
-   try {
-    # Resourceaccount koppelen aan callqueue
-    Write-Output "ResourceAcccount kopppelen aan CallQueue..."
-    #New-CsOnlineApplicationInstanceAssociation -Identities @($resourceAccount.ObjectId) -ConfigurationId $newCallQueue.Identity -ConfigurationType CallQueue -WarningAction SilentlyContinue > $null
-    Write-Output "Resource account is gekoppeld aan CallQueue"
-   }
-   catch {
-     Write-Output "An error occurred: $_"
-   }
+    Write-Output "eendjes added... $userlist" | Tee-Object -FilePath $logFilePath -Append
+}
+catch {
+    Write-Output "An error occurred: $_" | Tee-Object -FilePath $logFilePath -Append
+}
+
+# Output the users who were not added
+if ($notAddedUsers.Count -gt 0) {
+    Write-Output "The following users were not added: $notAddedUsers" | Tee-Object -FilePath $logFilePath -Append
+} else {
+    Write-Output "All users were added successfully." | Tee-Object -FilePath $logFilePath -Append
+}
+
+Write-Output "======================================" | Tee-Object -FilePath $logFilePath -Append
 
 } elseif ($confirmation -eq "no") {
-    Write-Output "Stopping..."
+    Write-Output "Stopping..." | Tee-Object -FilePath $logFilePath -Append
     exit
 } else {
-    Write-Output "Invalid input. Please enter 'yes' or 'no'."
+    Write-Output "Invalid input. Please enter 'yes' or 'no'." | Tee-Object -FilePath $logFilePath -Append
 }
 }
