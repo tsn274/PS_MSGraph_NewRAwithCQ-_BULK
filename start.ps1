@@ -166,4 +166,38 @@ try {
 
 #### vanaf hier verder met agents toevoegen
 
+ # agents toevoegen aan call queue
+    ## ONDERSTAANDE IS NIET ZO BEST KAN MAKKELIJKER
+    $userGuids = @()
+    foreach ($item in $row.Agents.Split(';')) {
+        $useremail = Get-MgUser -UserId $item
+        $userGuids += $useremail.Id
+    }
+    
+   ## 
+   try {
+    Write-Output "Adding the eendjes"
+    #Set-CsCallQueue -Identity $newCallQueue.Identity -Users $userGuids -WarningAction SilentlyContinue > $null
+    Write-Output "eendjes added...$userGuids"
+   }
+   catch {
+    Write-Output "An error occurred: $_"
+   }
+   
+   try {
+    # Resourceaccount koppelen aan callqueue
+    Write-Output "ResourceAcccount kopppelen aan CallQueue..."
+    #New-CsOnlineApplicationInstanceAssociation -Identities @($resourceAccount.ObjectId) -ConfigurationId $newCallQueue.Identity -ConfigurationType CallQueue -WarningAction SilentlyContinue > $null
+    Write-Output "Resource account is gekoppeld aan CallQueue"
+   }
+   catch {
+     Write-Output "An error occurred: $_"
+   }
+   
+
+} elseif ($confirmation -eq "no") {
+    Write-Output "Stopping..."
+    exit
+} else {
+    Write-Output "Invalid input. Please enter 'yes' or 'no'."
 }
