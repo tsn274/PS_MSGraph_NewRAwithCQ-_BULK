@@ -134,6 +134,7 @@ $callQueueParams = @{
     RoutingMethod = $CQAgentsRoutingmethod 
     PresenceBasedRouting = $cqpresencerouting
     UseDefaultMusicOnHold = $true
+    #OboResourceAccountIds = $resourceAccount.Id  ########## caller id meegeven aan callqueue CHECKEN OF DIT WERKT.
     #RoutingMethod = LongestIdle
     #AgentAlertTime = 30
     AllowOptOut = $cqagentsoptout
